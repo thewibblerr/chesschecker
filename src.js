@@ -44,6 +44,30 @@ async function scan(file) {
   }
 }
 
+function dataUrlToFile(dataUrl) {
+  const [meta, data] = dataUrl.split(',', 2);
+  if (!meta || !data) throw new Error('Invalid image data');
+  const mime = meta.match(/^data:([^;]+)/)?.[1] || 'image/jpeg';
+  const binary = atob(data);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new File([bytes], 'shortcut.jpg', { type: mime });
+}
+
+async function scanShortcutImage() {
+  const hash = location.hash;
+  if (!hash.startsWith('#img=')) return;
+  try {
+    const encoded = hash.slice(5);
+    const dataUrl = decodeURIComponent(encoded);
+    history.replaceState(null, '', location.pathname + location.search);
+    await scan(dataUrlToFile(dataUrl));
+  } catch (e) {
+    console.error(e);
+    $('#status').textContent = 'Could not read the image passed from Shortcuts.';
+  }
+}
+
 $('#choose').onclick = () => $('#file').click();
 $('#file').onchange = () => {
   const f = $('#file').files?.[0];
@@ -63,3 +87,4 @@ window.addEventListener('paste', (e) => {
 });
 
 recognizer.warmUp().catch(() => {});
+scanShortcutImage();
