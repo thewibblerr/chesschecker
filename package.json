@@ -1,0 +1,17 @@
+{
+  "name": "chesschecker",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "prebuild": "node scripts/sync-assets.mjs",
+    "build": "vite"
+  },
+  "dependencies": {
+    "@scoriiu/fenshot": "0.1.4",
+    "onnxruntime-web": "1.26.0"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0"
+  }
+}
