@@ -1,11 +1,15 @@
-import { createRecognizer, resolveOrientation, placementToFen } from '@scoriiu/fenshot';
-import ortMjsUrl from './generated/ort-wasm-simd-threaded.mjs?url';
-import ortWasmUrl from './generated/ort-wasm-simd-threaded.wasm?url';
-import modelUrl from './generated/chess-tiles-v2.onnx?url';
-import './style.css';
+import { createRecognizer, resolveOrientation, placementToFen } from 'https://esm.sh/@scoriiu/fenshot@0.1.4?deps=onnxruntime-web@1.26.0';
 
 const $ = (s) => document.querySelector(s);
-const recognizer = createRecognizer({ modelUrl, wasmPaths: { mjs: ortMjsUrl, wasm: ortWasmUrl } });
+
+const recognizer = createRecognizer({
+  modelUrl: 'https://cdn.jsdelivr.net/npm/@scoriiu/fenshot@0.1.4/model/chess-tiles-v2.onnx',
+  wasmPaths: {
+    mjs: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0/dist/ort-wasm-simd-threaded.mjs',
+    wasm: 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.26.0/dist/ort-wasm-simd-threaded.wasm'
+  }
+});
+
 let placement = '';
 
 function updateFen() {
@@ -22,11 +26,16 @@ async function scan(file) {
   $('#preview').hidden = false;
   try {
     const result = await recognizer.recognize(file);
-    if (!result) { $('#status').textContent = 'No chessboard detected.'; return; }
+    if (!result) {
+      $('#status').textContent = 'No chessboard detected.';
+      return;
+    }
     const oriented = resolveOrientation(result.placement);
     placement = oriented.placement;
     $('#confidence').textContent = Math.round(result.meanConfidence * 100) + '%';
-    $('#status').textContent = result.reliable ? 'Board recognised.' : 'Board recognised with low confidence. Check the pieces carefully.';
+    $('#status').textContent = result.reliable
+      ? 'Board recognised.'
+      : 'Board recognised with low confidence. Check the pieces carefully.';
     updateFen();
     $('#result').hidden = false;
   } catch (e) {
@@ -36,15 +45,21 @@ async function scan(file) {
 }
 
 $('#choose').onclick = () => $('#file').click();
-$('#file').onchange = () => { const f = $('#file').files?.[0]; if (f) scan(f); };
+$('#file').onchange = () => {
+  const f = $('#file').files?.[0];
+  if (f) scan(f);
+};
 $('#turn').onchange = updateFen;
-$('#copy').onclick = async () => { await navigator.clipboard.writeText($('#fen').textContent); $('#copy').textContent='Copied'; setTimeout(()=>$('#copy').textContent='Copy FEN',1200); };
+$('#copy').onclick = async () => {
+  await navigator.clipboard.writeText($('#fen').textContent);
+  $('#copy').textContent = 'Copied';
+  setTimeout(() => $('#copy').textContent = 'Copy FEN', 1200);
+};
 
-// Supports image paste on desktop and future Shortcut/browser hand-off work.
 window.addEventListener('paste', (e) => {
   const item = [...(e.clipboardData?.items || [])].find(i => i.type.startsWith('image/'));
   const f = item?.getAsFile();
   if (f) scan(f);
 });
 
-recognizer.warmUp();
+recognizer.warmUp().catch(() => {});
