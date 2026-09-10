@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Chess Checker</title>
+</head>
+<body>
+  <main>
+    <h1>Chess Checker</h1>
+    <p class="subtitle">Chess.com screenshot to FEN</p>
+    <section id="drop" class="card">
+      <input id="file" type="file" accept="image/*" />
+      <button id="choose">Choose screenshot</button>
+      <p id="status">Select a Chess.com screenshot.</p>
+      <img id="preview" hidden />
+    </section>
+    <section id="result" class="card" hidden>
+      <div class="line">Confidence <strong id="confidence"></strong></div>
+      <label>Side to move
+        <select id="turn"><option value="w">White</option><option value="b">Black</option></select>
+      </label>
+      <p class="hint">Check the side to move. A screenshot does not always contain enough information to infer it safely.</p>
+      <div id="fen" class="fen"></div>
+      <div class="buttons"><button id="copy">Copy FEN</button><a id="analyse" target="_blank" rel="noopener">Analyse on Lichess</a></div>
+    </section>
+  </main>
+  <script type="module" src="/src.js"></script>
+</body>
+</html>
