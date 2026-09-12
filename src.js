@@ -11,13 +11,40 @@ const recognizer = createRecognizer({
 });
 
 let placement = '';
+let boardFlipped = false;
 
 function updateFen() {
-  if (!placement) return;
+  if (!placement) return '';
   const fen = placementToFen(placement, $('#turn').value);
   $('#fen').textContent = fen;
   $('#analyse').href = 'https://lichess.org/analysis/standard/' + fen.replaceAll(' ', '_');
-  $('#coachess').href = 'https://coachess.app/coach/position?fen=' + encodeURIComponent(fen) + '&ref=chesschecker';
+  $('#coachess').href = 'https://coachess.app/coach/position?fen=' + encodeURIComponent(fen)
+    + (boardFlipped ? '&pov=black' : '')
+    + '&ref=chesschecker';
+  return fen;
+}
+
+async function copyFenAutomatically(fen) {
+  if (!fen) return false;
+  try {
+    await navigator.clipboard.writeText(fen);
+    return true;
+  } catch (_) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = fen;
+      ta.setAttribute('readonly', '');
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      ta.remove();
+      return ok;
+    } catch (_) {
+      return false;
+    }
+  }
 }
 
 async function scan(file) {
@@ -33,12 +60,15 @@ async function scan(file) {
     }
     const oriented = resolveOrientation(result.placement);
     placement = oriented.placement;
+    boardFlipped = Boolean(oriented.flipped);
     $('#confidence').textContent = Math.round(result.meanConfidence * 100) + '%';
-    $('#status').textContent = result.reliable
+    const fen = updateFen();
+    $('#result').hidden = false;
+    const copied = await copyFenAutomatically(fen);
+    const recognised = result.reliable
       ? 'Board recognised.'
       : 'Board recognised with low confidence. Check the pieces carefully.';
-    updateFen();
-    $('#result').hidden = false;
+    $('#status').textContent = copied ? recognised + ' FEN copied automatically.' : recognised;
   } catch (e) {
     console.error(e);
     $('#status').textContent = 'Recognition failed. Reload and try again.';
@@ -71,7 +101,10 @@ $('#file').onchange = () => {
   const f = $('#file').files?.[0];
   if (f) scan(f);
 };
-$('#turn').onchange = updateFen;
+$('#turn').onchange = async () => {
+  const fen = updateFen();
+  if (await copyFenAutomatically(fen)) $('#status').textContent = 'Side to move updated. FEN copied automatically.';
+};
 $('#copy').onclick = async () => {
   await navigator.clipboard.writeText($('#fen').textContent);
   $('#copy').textContent = 'Copied';
