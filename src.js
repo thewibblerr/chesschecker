@@ -14,6 +14,40 @@ let placement = '';
 let boardFlipped = false;
 let coachessUrl = '';
 
+function inferBottomSide(rawPlacement) {
+  const rows = rawPlacement.split('/');
+  if (rows.length !== 8) return 'w';
+
+  let whiteScore = 0;
+  let blackScore = 0;
+  let whiteKingRow = -1;
+  let blackKingRow = -1;
+
+  rows.forEach((row, rowIndex) => {
+    // Rows later in the recognised placement are nearer the bottom of the screenshot.
+    // Give those pieces progressively more weight so the colour visually nearest
+    // the bottom edge dominates the guess.
+    const weight = rowIndex + 1;
+
+    for (const piece of row) {
+      if (!/[a-zA-Z]/.test(piece)) continue;
+      if (piece === piece.toUpperCase()) whiteScore += weight;
+      else blackScore += weight;
+
+      if (piece === 'K') whiteKingRow = rowIndex;
+      if (piece === 'k') blackKingRow = rowIndex;
+    }
+  });
+
+  if (blackScore > whiteScore) return 'b';
+  if (whiteScore > blackScore) return 'w';
+
+  // Tie-breaker: whichever king is lower on the screenshot is likely the side
+  // whose pieces are being viewed from the bottom.
+  if (blackKingRow > whiteKingRow) return 'b';
+  return 'w';
+}
+
 function updateFen() {
   if (!placement) return '';
   const fen = placementToFen(placement, $('#turn').value);
@@ -64,10 +98,16 @@ async function scan(file) {
       $('#status').textContent = 'No chessboard detected.';
       return;
     }
+
+    // Determine which colour is visually nearest the bottom BEFORE Fenshot
+    // normalises the board orientation.
+    const bottomSide = inferBottomSide(result.placement);
+
     const oriented = resolveOrientation(result.placement);
     placement = oriented.placement;
-    boardFlipped = Boolean(oriented.flipped);
-    $('#turn').value = boardFlipped ? 'b' : 'w';
+    boardFlipped = bottomSide === 'b';
+    $('#turn').value = bottomSide;
+
     $('#confidence').textContent = Math.round(result.meanConfidence * 100) + '%';
     const fen = updateFen();
     $('#result').hidden = false;
