@@ -20,19 +20,17 @@ main{
 .hero{
   display:flex;
   align-items:center;
-  gap:16px;
+  gap:18px;
   margin:4px 0 26px;
 }
-.brand-mark{
-  width:52px;
-  height:52px;
-  display:grid;
-  place-items:center;
-  border-radius:16px;
-  background:#1f2937;
-  color:white;
-  font-size:28px;
-  box-shadow:0 10px 30px rgba(15,23,42,.12);
+.brand-logo{
+  width:104px;
+  height:104px;
+  flex:0 0 104px;
+  display:block;
+  object-fit:cover;
+  border-radius:24px;
+  box-shadow:0 12px 32px rgba(15,23,42,.14);
 }
 h1{
   margin:0;
@@ -196,6 +194,8 @@ select{
   .buttons{grid-template-columns:1fr 1fr 1fr}
 }
 @media(max-width:430px){
+  .hero{align-items:flex-start}
+  .brand-logo{width:92px;height:92px;flex-basis:92px;border-radius:22px}
   .upload-actions{grid-template-columns:1fr}
   .result-topline{align-items:center}
   .confidence-pill{font-size:11px}
