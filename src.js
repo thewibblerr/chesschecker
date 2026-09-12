@@ -44,30 +44,27 @@ async function scan(file) {
   }
 }
 
-function dataUrlToFile(dataUrl) {
-  const [meta, data] = dataUrl.split(',', 2);
-  if (!meta || !data) throw new Error('Invalid image data');
-  const mime = meta.match(/^data:([^;]+)/)?.[1] || 'image/jpeg';
-  const binary = atob(data);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  return new File([bytes], 'shortcut.jpg', { type: mime });
-}
-
-async function scanShortcutImage() {
-  const hash = location.hash;
-  if (!hash.startsWith('#img=')) return;
+async function scanClipboardImage() {
+  $('#status').textContent = 'Reading shared screenshot…';
   try {
-    const encoded = hash.slice(5);
-    const dataUrl = decodeURIComponent(encoded);
-    history.replaceState(null, '', location.pathname + location.search);
-    await scan(dataUrlToFile(dataUrl));
+    if (!navigator.clipboard?.read) throw new Error('Clipboard image access is unavailable');
+    const items = await navigator.clipboard.read();
+    for (const item of items) {
+      const type = item.types.find(t => t.startsWith('image/'));
+      if (!type) continue;
+      const blob = await item.getType(type);
+      const file = new File([blob], 'shared-screenshot', { type });
+      await scan(file);
+      return;
+    }
+    $('#status').textContent = 'No image found on the clipboard. Share the screenshot to Chess Checker again.';
   } catch (e) {
     console.error(e);
-    $('#status').textContent = 'Could not read the image passed from Shortcuts.';
+    $('#status').textContent = 'Clipboard access was blocked. Tap Choose screenshot instead.';
   }
 }
 
+$('#clipboard').onclick = scanClipboardImage;
 $('#choose').onclick = () => $('#file').click();
 $('#file').onchange = () => {
   const f = $('#file').files?.[0];
@@ -87,4 +84,3 @@ window.addEventListener('paste', (e) => {
 });
 
 recognizer.warmUp().catch(() => {});
-scanShortcutImage();
