@@ -67,6 +67,7 @@ async function scan(file) {
     const oriented = resolveOrientation(result.placement);
     placement = oriented.placement;
     boardFlipped = Boolean(oriented.flipped);
+    $('#turn').value = boardFlipped ? 'b' : 'w';
     $('#confidence').textContent = Math.round(result.meanConfidence * 100) + '%';
     const fen = updateFen();
     $('#result').hidden = false;
