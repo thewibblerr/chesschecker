@@ -17,6 +17,7 @@ function updateFen() {
   const fen = placementToFen(placement, $('#turn').value);
   $('#fen').textContent = fen;
   $('#analyse').href = 'https://lichess.org/analysis/standard/' + fen.replaceAll(' ', '_');
+  $('#coachess').href = 'https://coachess.app/coach/position?fen=' + encodeURIComponent(fen) + '&ref=chesschecker';
 }
 
 async function scan(file) {
