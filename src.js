@@ -24,26 +24,31 @@ function updateFen() {
   return fen;
 }
 
-async function copyFenAutomatically(fen) {
-  if (!fen) return false;
+function legacyCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  ta.style.top = '0';
+  ta.style.fontSize = '16px';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  ta.setSelectionRange(0, ta.value.length);
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (_) {}
+  ta.remove();
+  return ok;
+}
+
+async function tryAutomaticCopy(fen) {
+  if (!fen || !navigator.clipboard?.writeText) return false;
   try {
     await navigator.clipboard.writeText(fen);
     return true;
   } catch (_) {
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = fen;
-      ta.setAttribute('readonly', '');
-      ta.style.position = 'fixed';
-      ta.style.opacity = '0';
-      document.body.appendChild(ta);
-      ta.select();
-      const ok = document.execCommand('copy');
-      ta.remove();
-      return ok;
-    } catch (_) {
-      return false;
-    }
+    return false;
   }
 }
 
@@ -64,11 +69,13 @@ async function scan(file) {
     $('#confidence').textContent = Math.round(result.meanConfidence * 100) + '%';
     const fen = updateFen();
     $('#result').hidden = false;
-    const copied = await copyFenAutomatically(fen);
+    const copied = await tryAutomaticCopy(fen);
     const recognised = result.reliable
       ? 'Board recognised.'
       : 'Board recognised with low confidence. Check the pieces carefully.';
-    $('#status').textContent = copied ? recognised + ' FEN copied automatically.' : recognised;
+    $('#status').textContent = copied
+      ? recognised + ' FEN copied automatically.'
+      : recognised + ' Tap Copy FEN to copy it.';
   } catch (e) {
     console.error(e);
     $('#status').textContent = 'Recognition failed. Reload and try again.';
@@ -103,12 +110,34 @@ $('#file').onchange = () => {
 };
 $('#turn').onchange = async () => {
   const fen = updateFen();
-  if (await copyFenAutomatically(fen)) $('#status').textContent = 'Side to move updated. FEN copied automatically.';
+  const copied = await tryAutomaticCopy(fen);
+  $('#status').textContent = copied
+    ? 'Side to move updated. FEN copied automatically.'
+    : 'Side to move updated. Tap Copy FEN to copy it.';
 };
+
 $('#copy').onclick = async () => {
-  await navigator.clipboard.writeText($('#fen').textContent);
-  $('#copy').textContent = 'Copied';
-  setTimeout(() => $('#copy').textContent = 'Copy FEN', 1200);
+  const fen = $('#fen').textContent;
+  if (!fen) return;
+
+  // On iPhone Safari the legacy copy path is attempted synchronously while
+  // the tap is still an active user gesture. The async Clipboard API is used
+  // as a fallback for browsers where it is allowed.
+  let copied = legacyCopy(fen);
+  if (!copied && navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(fen);
+      copied = true;
+    } catch (_) {}
+  }
+
+  if (copied) {
+    $('#copy').textContent = 'Copied ✓';
+    $('#status').textContent = 'FEN copied.';
+    setTimeout(() => $('#copy').textContent = 'Copy FEN', 1200);
+  } else {
+    $('#status').textContent = 'Safari blocked clipboard access. Press and hold the FEN, then choose Copy.';
+  }
 };
 
 window.addEventListener('paste', (e) => {
