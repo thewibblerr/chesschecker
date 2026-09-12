@@ -12,13 +12,14 @@ const recognizer = createRecognizer({
 
 let placement = '';
 let boardFlipped = false;
+let coachessUrl = '';
 
 function updateFen() {
   if (!placement) return '';
   const fen = placementToFen(placement, $('#turn').value);
   $('#fen').textContent = fen;
   $('#analyse').href = 'https://lichess.org/analysis/standard/' + fen.replaceAll(' ', '_');
-  $('#coachess').href = 'https://coachess.app/coach/position?fen=' + encodeURIComponent(fen)
+  coachessUrl = 'https://coachess.app/coach/position?fen=' + encodeURIComponent(fen)
     + (boardFlipped ? '&pov=black' : '')
     + '&ref=chesschecker';
   return fen;
@@ -119,10 +120,6 @@ $('#turn').onchange = async () => {
 $('#copy').onclick = async () => {
   const fen = $('#fen').textContent;
   if (!fen) return;
-
-  // On iPhone Safari the legacy copy path is attempted synchronously while
-  // the tap is still an active user gesture. The async Clipboard API is used
-  // as a fallback for browsers where it is allowed.
   let copied = legacyCopy(fen);
   if (!copied && navigator.clipboard?.writeText) {
     try {
@@ -130,7 +127,6 @@ $('#copy').onclick = async () => {
       copied = true;
     } catch (_) {}
   }
-
   if (copied) {
     $('#copy').textContent = 'Copied ✓';
     $('#status').textContent = 'FEN copied.';
@@ -138,6 +134,14 @@ $('#copy').onclick = async () => {
   } else {
     $('#status').textContent = 'Safari blocked clipboard access. Press and hold the FEN, then choose Copy.';
   }
+};
+
+$('#coachess').onclick = () => {
+  if (!coachessUrl) {
+    $('#status').textContent = 'Recognise a board first.';
+    return;
+  }
+  window.location.assign(coachessUrl);
 };
 
 window.addEventListener('paste', (e) => {
