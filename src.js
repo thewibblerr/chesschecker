@@ -1,7 +1,6 @@
 import { createRecognizer, resolveOrientation, placementToFen } from 'https://esm.sh/@scoriiu/fenshot@0.1.4?deps=onnxruntime-web@1.26.0';
 
 const $ = (s) => document.querySelector(s);
-const WORKER_BASE = 'https://wispy-river-83f4.simon-a7f.workers.dev';
 
 const recognizer = createRecognizer({
   modelUrl: 'https://cdn.jsdelivr.net/npm/@scoriiu/fenshot@0.1.4/model/chess-tiles-v2.onnx',
@@ -84,36 +83,6 @@ async function scan(file) {
   }
 }
 
-async function scanUploadedImage() {
-  const params = new URLSearchParams(window.location.search);
-  const id = params.get('id');
-  if (!id) return;
-
-  $('#status').textContent = 'Loading shared screenshot…';
-
-  try {
-    const response = await fetch(WORKER_BASE + '/image/' + encodeURIComponent(id), {
-      cache: 'no-store'
-    });
-
-    if (!response.ok) {
-      throw new Error('Image download failed: ' + response.status);
-    }
-
-    const blob = await response.blob();
-    const type = blob.type || 'image/jpeg';
-    const file = new File([blob], 'shared-screenshot', { type });
-
-    // Remove the temporary image ID from the visible URL once it has loaded.
-    history.replaceState({}, '', window.location.pathname);
-
-    await scan(file);
-  } catch (e) {
-    console.error(e);
-    $('#status').textContent = 'Could not load the shared screenshot. It may have expired. Share it again or tap Choose screenshot.';
-  }
-}
-
 async function scanClipboardImage() {
   $('#status').textContent = 'Reading shared screenshot…';
   try {
@@ -182,4 +151,3 @@ window.addEventListener('paste', (e) => {
 });
 
 recognizer.warmUp().catch(() => {});
-scanUploadedImage();
