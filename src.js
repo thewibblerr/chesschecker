@@ -135,7 +135,30 @@ function ensureEnhancements() {
     <p class="enhancement-note">Chess Checker has reconstructed the board. Correct any misread piece before analysing.</p>`;
   topLine.insertAdjacentElement('afterend',boardEditor);
 
+  const fenLabel = result.querySelector('.fen-label');
+  if (fenLabel) fenLabel.textContent = 'FEN - automatically copied, click to copy again';
+  const fenEl = $('#fen');
+  if (fenEl) {
+    fenEl.setAttribute('role','button');
+    fenEl.setAttribute('tabindex','0');
+    fenEl.setAttribute('aria-label','Copy FEN');
+    fenEl.style.cursor='pointer';
+    const copyFenAgain = async () => {
+      const fen=fenEl.textContent;
+      if(!fen)return;
+      const copied=await copyText(fen);
+      $('#status').textContent=copied?'FEN copied again.':'Safari blocked clipboard access. Press and hold the FEN, then choose Copy.';
+    };
+    fenEl.onclick=copyFenAgain;
+    fenEl.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();copyFenAgain();}};
+  }
+  const oldCopy = $('#copy');
+  if (oldCopy) oldCopy.remove();
+  const coachessButton = $('#coachess');
+  if (coachessButton) coachessButton.textContent='Analyse on Coachess';
+
   const actions = result.querySelector('.buttons');
+  if (actions) actions.style.gridTemplateColumns='repeat(2,1fr)';
   const wrapper = document.createElement('div');
   wrapper.innerHTML=`
     <div id="opening-panel" class="enhancement-block compact-block" hidden><span class="eyebrow">Opening</span><div id="opening-name" class="opening-name"></div></div>
@@ -317,8 +340,9 @@ async function scan(file){
     const bottomSide=boardFlipped?'b':'w',turn=await inferTurnFromScreenshot(file,result.corners,bottomSide);$('#turn').value=turn.side;
     const hint=$('#result .hint');if(hint)hint.textContent=turn.source==='active-clock'?'Side to move detected from the active player clock. Change it if needed.':'Side to move estimated from board orientation. Change it if needed.';
     $('#confidence').textContent=Math.round(result.meanConfidence*100)+'%';const fen=updateFen();renderBoard();clearEngineResults('Analyse the recognised position.');$('#result').hidden=false;saveCurrentToHistory();
+    requestAnimationFrame(()=>$('#result').scrollIntoView({behavior:'smooth',block:'start'}));
     const copied=await tryAutomaticCopy(fen),recognised=result.reliable?'Board recognised.':'Board recognised with low confidence. Open the editor to check the board.';
-    $('#status').textContent=copied?recognised+' FEN copied automatically.':recognised+' Tap Copy FEN to copy it.';
+    $('#status').textContent=copied?recognised+' FEN copied automatically.':recognised+' Tap the FEN to copy it.';
   }catch(e){console.error(e);$('#status').textContent='Recognition failed. Reload and try again.';}
 }
 async function scanClipboardImage(){
@@ -412,8 +436,7 @@ initTheme();ensureEnhancements();
 $('#clipboard').onclick=scanClipboardImage;
 $('#choose').onclick=()=>$('#file').click();
 $('#file').onchange=()=>{const f=$('#file').files?.[0];if(f)scan(f);};
-$('#turn').onchange=async()=>{const fen=updateFen();clearEngineResults('Side to move updated. Ready to analyse.');saveCurrentToHistory();const copied=await tryAutomaticCopy(fen);$('#status').textContent=copied?'Side to move updated. FEN copied automatically.':'Side to move updated. Tap Copy FEN to copy it.';};
-$('#copy').onclick=async()=>{const fen=$('#fen').textContent;if(!fen)return;const copied=await copyText(fen);if(copied){$('#copy').textContent='Copied ✓';$('#status').textContent='FEN copied.';setTimeout(()=>$('#copy').textContent='Copy FEN',1200);}else $('#status').textContent='Safari blocked clipboard access. Press and hold the FEN, then choose Copy.';};
+$('#turn').onchange=async()=>{const fen=updateFen();clearEngineResults('Side to move updated. Ready to analyse.');saveCurrentToHistory();const copied=await tryAutomaticCopy(fen);$('#status').textContent=copied?'Side to move updated. FEN copied automatically.':'Side to move updated. Tap the FEN to copy it.';};
 $('#coachess').onclick=()=>{if(!coachessUrl){$('#status').textContent='Recognise a board first.';return;}window.location.assign(coachessUrl);};
 window.addEventListener('paste',e=>{const item=[...(e.clipboardData?.items||[])].find(i=>i.type.startsWith('image/')),f=item?.getAsFile();if(f)scan(f);});
 const params=new URLSearchParams(location.search);if(params.get('fen'))loadFen(params.get('fen'),true);
