@@ -1,0 +1,31 @@
+# Chess Checker
+
+> Chess Checker is a free web app for turning chessboard screenshots into FEN positions for post-game analysis, chess puzzles and study.
+
+## Main pages
+
+- https://chesschecker.com/ — Interactive Chess Checker app. Upload or paste a chess screenshot, review the detected position, correct pieces if needed, copy FEN, and open the position in Lichess or Coachess.
+- https://chesschecker.com/analyse-chess-moves.html — Explanation of how to analyse chess moves and positions from screenshots.
+
+## Capabilities
+
+- Convert chess screenshots and chessboard images to FEN.
+- Recognise board orientation and estimate the side to move.
+- Show a confidence score for recognised positions.
+- Provide an editable visual chessboard for correcting misread pieces.
+- Identify a selection of common chess openings.
+- Save recent positions locally on the user's device.
+- Create shareable position links.
+- Send positions to Lichess or Coachess for analysis.
+
+## Intended use
+
+Chess Checker is intended for post-game review, puzzles, coaching and chess study. It is not intended to provide prohibited outside assistance during live human games.
+
+## Product details
+
+- Name: Chess Checker
+- Website: https://chesschecker.com/
+- Price: Free
+- Account required: No
+- Category: Chess analysis utility / screenshot-to-FEN converter
