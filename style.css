@@ -22,6 +22,7 @@ main{
   align-items:center;
   gap:18px;
   margin:4px 0 26px;
+  position:relative;
 }
 .brand-logo{
   width:104px;
@@ -201,6 +202,7 @@ select{
   border-radius:18px;
   background:#fbfcfe;
 }
+.compact-block{padding:16px 18px}
 .enhancement-heading{
   display:flex;
   align-items:flex-start;
@@ -349,13 +351,132 @@ select{
   font-size:12px;
   color:#667085;
 }
+.opening-name{
+  margin-top:5px;
+  font-size:18px;
+  font-weight:800;
+  color:#172033;
+}
+.share-actions{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.history-card[hidden]{display:none}
+.history-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:14px;
+}
+.text-button,.theme-toggle{
+  min-height:38px;
+  padding:8px 12px;
+  border-radius:999px;
+  background:#eef2f7;
+  color:#475467;
+  font-size:12px;
+  box-shadow:none;
+}
+.theme-toggle{
+  margin-left:auto;
+  white-space:nowrap;
+}
+.history-list{display:grid;gap:9px}
+.history-item{
+  width:100%;
+  min-height:68px;
+  padding:9px;
+  display:grid;
+  grid-template-columns:58px 1fr auto;
+  gap:11px;
+  align-items:center;
+  text-align:left;
+  background:#f8fafc;
+  border:1px solid #e7ebf1;
+  color:#172033;
+  box-shadow:none;
+}
+.history-item img,.history-thumb-placeholder{
+  width:58px;
+  height:58px;
+  object-fit:cover;
+  border-radius:10px;
+  background:#111827;
+}
+.history-thumb-placeholder{
+  display:grid;
+  place-items:center;
+  color:white;
+  font-size:28px;
+}
+.history-copy{display:grid;gap:4px;min-width:0}
+.history-copy strong{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.history-copy span{font-size:12px;color:#7c8799}
+.history-open{font-size:12px;color:#2563eb;font-weight:800}
+
+:root[data-theme="dark"]{
+  color:#eef2f7;
+  background:#0b1020;
+}
+:root[data-theme="dark"] body{
+  background:radial-gradient(circle at top left,rgba(59,130,246,.12),transparent 30%),linear-gradient(180deg,#0d1322 0%,#090e1a 100%);
+}
+:root[data-theme="dark"] .subtitle,
+:root[data-theme="dark"] .status,
+:root[data-theme="dark"] .hint,
+:root[data-theme="dark"] .enhancement-note,
+:root[data-theme="dark"] .engine-status,
+:root[data-theme="dark"] .history-copy span{color:#9aa6ba}
+:root[data-theme="dark"] .card{
+  background:rgba(18,25,40,.96);
+  border-color:#283348;
+  box-shadow:0 14px 42px rgba(0,0,0,.28);
+}
+:root[data-theme="dark"] .enhancement-block,
+:root[data-theme="dark"] .engine-panel{
+  background:#111a2b;
+  border-color:#29354a;
+}
+:root[data-theme="dark"] .status{background:#101827}
+:root[data-theme="dark"] .secondary,
+:root[data-theme="dark"] .text-button,
+:root[data-theme="dark"] .theme-toggle,
+:root[data-theme="dark"] .picker-close{
+  background:#202b3d;
+  color:#e6ebf3;
+}
+:root[data-theme="dark"] select{
+  background-color:#111827;
+  color:#eef2f7;
+  border-color:#344054;
+}
+:root[data-theme="dark"] .control-row{border-top-color:#2a3548}
+:root[data-theme="dark"] .opening-name,
+:root[data-theme="dark"] .history-item{color:#eef2f7}
+:root[data-theme="dark"] .engine-result-row,
+:root[data-theme="dark"] .piece-picker-card{background:#172033;border-color:#2b374b}
+:root[data-theme="dark"] .engine-rank,
+:root[data-theme="dark"] .piece-option{background:#202b3d;color:#eef2f7}
+:root[data-theme="dark"] .history-item{background:#121b2b;border-color:#29354a}
+:root[data-theme="dark"] .fen-block{background:#080d18}
+:root[data-theme="dark"] .mini-pill{background:#123321;color:#80d7a1}
+:root[data-theme="dark"] .mini-pill.warning{background:#3a2b12;color:#f4c470}
+:root[data-theme="dark"] .confidence-pill{background:#123321;color:#80d7a1}
+:root[data-theme="dark"] .eyebrow{color:#8d99ad}
+
 @media(min-width:560px){
   main{padding-top:48px}
   .card{padding:24px}
   .buttons{grid-template-columns:1fr 1fr 1fr}
 }
+@media(max-width:560px){
+  .hero{flex-wrap:wrap}
+  .theme-toggle{position:absolute;top:0;right:0}
+}
 @media(max-width:430px){
-  .hero{align-items:flex-start}
+  .hero{align-items:flex-start;padding-top:44px}
   .brand-logo{width:92px;height:92px;flex-basis:92px;border-radius:22px}
   .upload-actions{grid-template-columns:1fr}
   .result-topline{align-items:center}
@@ -364,4 +485,7 @@ select{
   .engine-result-row{grid-template-columns:24px 1fr auto}
   .engine-uci{display:none}
   .piece-options{grid-template-columns:repeat(4,1fr)}
+  .share-actions{grid-template-columns:1fr}
+  .history-item{grid-template-columns:50px 1fr auto}
+  .history-item img,.history-thumb-placeholder{width:50px;height:50px}
 }
