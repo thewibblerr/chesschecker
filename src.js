@@ -66,9 +66,30 @@ function setTheme(theme) {
   const b = $('#theme-toggle');
   if (b) b.textContent = theme === 'dark' ? 'Light mode' : 'Dark mode';
 }
+
 function initTheme() {
   const saved = localStorage.getItem(THEME_KEY);
   setTheme(saved || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+}
+
+function resetBoardEditor() {
+  const editor = $('#board-editor');
+  const toggle = $('#board-correct-toggle');
+  if (editor) editor.hidden = true;
+  if (toggle) {
+    toggle.textContent = 'Check / correct board';
+    toggle.setAttribute('aria-expanded','false');
+  }
+}
+
+function toggleBoardEditor() {
+  const editor = $('#board-editor');
+  const toggle = $('#board-correct-toggle');
+  if (!editor || !toggle) return;
+  editor.hidden = !editor.hidden;
+  toggle.textContent = editor.hidden ? 'Check / correct board' : 'Hide board editor';
+  toggle.setAttribute('aria-expanded', String(!editor.hidden));
+  if (!editor.hidden) editor.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
 function ensureEnhancements() {
@@ -78,16 +99,47 @@ function ensureEnhancements() {
   const hero = document.querySelector('.hero');
   if (hero && !$('#theme-toggle')) {
     const toggle = document.createElement('button');
-    toggle.id='theme-toggle'; toggle.className='theme-toggle'; toggle.type='button';
+    toggle.id='theme-toggle';
+    toggle.className='theme-toggle';
+    toggle.type='button';
     toggle.onclick=()=>setTheme(document.documentElement.dataset.theme==='dark'?'light':'dark');
     hero.appendChild(toggle);
+  }
+
+  const confidence = result.querySelector('.confidence-pill');
+  if (confidence && !$('#board-correct-toggle')) {
+    const tools = document.createElement('div');
+    tools.className = 'confidence-tools';
+    tools.style.display = 'grid';
+    tools.style.justifyItems = 'end';
+    tools.style.gap = '4px';
+    confidence.parentNode.insertBefore(tools, confidence);
+    tools.appendChild(confidence);
+
+    const boardToggle = document.createElement('button');
+    boardToggle.id = 'board-correct-toggle';
+    boardToggle.type = 'button';
+    boardToggle.textContent = 'Check / correct board';
+    boardToggle.setAttribute('aria-expanded','false');
+    boardToggle.style.minHeight = '0';
+    boardToggle.style.padding = '2px 1px';
+    boardToggle.style.borderRadius = '0';
+    boardToggle.style.background = 'transparent';
+    boardToggle.style.boxShadow = 'none';
+    boardToggle.style.fontSize = '11px';
+    boardToggle.style.fontWeight = '650';
+    boardToggle.style.color = '#2563eb';
+    boardToggle.style.textDecoration = 'underline';
+    boardToggle.style.textUnderlineOffset = '2px';
+    boardToggle.onclick = toggleBoardEditor;
+    tools.appendChild(boardToggle);
   }
 
   const actions = result.querySelector('.buttons');
   const wrapper = document.createElement('div');
   wrapper.innerHTML = `
     <div id="opening-panel" class="enhancement-block compact-block" hidden><span class="eyebrow">Opening</span><div id="opening-name" class="opening-name"></div></div>
-    <div id="board-editor" class="enhancement-block">
+    <div id="board-editor" class="enhancement-block" hidden>
       <div class="enhancement-heading"><div><span class="eyebrow">Board check</span><h3>Tap any square to correct it</h3></div><span id="position-validity" class="mini-pill">Ready</span></div>
       <div id="detected-board" class="detected-board" aria-label="Detected chess position"></div>
       <p class="enhancement-note">Chess Checker has reconstructed the board. Correct any misread piece before analysing.</p>
@@ -107,14 +159,21 @@ function ensureEnhancements() {
   while (wrapper.firstChild) result.insertBefore(wrapper.firstChild, actions);
 
   const history = document.createElement('section');
-  history.id='history-panel'; history.className='card history-card';
+  history.id='history-panel';
+  history.className='card history-card';
   history.innerHTML='<div class="history-head"><div><span class="eyebrow">On this device</span><h2>Recent positions</h2></div><button id="clear-history" class="text-button" type="button">Clear</button></div><div id="history-list" class="history-list"></div>';
   result.insertAdjacentElement('afterend', history);
 
   for (const piece of [null,'K','Q','R','B','N','P','k','q','r','b','n','p']) {
-    const b=document.createElement('button'); b.type='button'; b.className='piece-option'; b.dataset.piece=piece||'';
-    b.textContent=piece?pieceGlyph[piece]:'Empty'; b.onclick=()=>setSelectedSquare(piece); $('#piece-options').appendChild(b);
+    const b=document.createElement('button');
+    b.type='button';
+    b.className='piece-option';
+    b.dataset.piece=piece||'';
+    b.textContent=piece?pieceGlyph[piece]:'Empty';
+    b.onclick=()=>setSelectedSquare(piece);
+    $('#piece-options').appendChild(b);
   }
+
   $('#piece-picker-close').onclick=closePiecePicker;
   $('#piece-picker').addEventListener('click',e=>{if(e.target.id==='piece-picker')closePiecePicker();});
   $('#find-best').onclick=analyseWithStockfish;
@@ -122,245 +181,552 @@ function ensureEnhancements() {
   $('#share-position').onclick=sharePosition;
   $('#clear-history').onclick=()=>{localStorage.removeItem(HISTORY_KEY);renderHistory();};
   renderHistory();
+  resetBoardEditor();
 }
 
 function parsePlacement(value) {
   const out=[];
-  for (const row of value.split('/')) for (const ch of row) {
-    if (/\d/.test(ch)) for(let i=0;i<Number(ch);i++) out.push(null); else out.push(ch);
+  for (const row of value.split('/')) {
+    for (const ch of row) {
+      if (/\d/.test(ch)) for(let i=0;i<Number(ch);i++) out.push(null);
+      else out.push(ch);
+    }
   }
   return out.length===64?out:Array(64).fill(null);
 }
+
 function boardToPlacement(items) {
   const rows=[];
   for(let r=0;r<8;r++){
     let row='',empties=0;
     for(let f=0;f<8;f++){
       const p=items[r*8+f];
-      if(!p) empties++; else {if(empties)row+=empties;empties=0;row+=p;}
+      if(!p) empties++;
+      else {
+        if(empties) row+=empties;
+        empties=0;
+        row+=p;
+      }
     }
-    if(empties)row+=empties; rows.push(row||'8');
+    if(empties) row+=empties;
+    rows.push(row||'8');
   }
   return rows.join('/');
 }
+
 function squareName(index){return 'abcdefgh'[index%8]+(8-Math.floor(index/8));}
 function squareIndex(name){return /^[a-h][1-8]$/.test(name)?(8-Number(name[1]))*8+'abcdefgh'.indexOf(name[0]):-1;}
 
 function renderBoard(){
-  const el=$('#detected-board'); if(!el)return; el.innerHTML='';
-  const from=bestMoveUci?squareIndex(bestMoveUci.slice(0,2)):-1,to=bestMoveUci?squareIndex(bestMoveUci.slice(2,4)):-1;
+  const el=$('#detected-board');
+  if(!el)return;
+  el.innerHTML='';
+  const from=bestMoveUci?squareIndex(bestMoveUci.slice(0,2)):-1;
+  const to=bestMoveUci?squareIndex(bestMoveUci.slice(2,4)):-1;
   for(let display=0;display<64;display++){
-    const index=boardFlipped?63-display:display,row=Math.floor(display/8),col=display%8;
-    const sq=document.createElement('button'); sq.type='button'; sq.className='board-square '+((row+col)%2?'dark':'light');
-    if(index===from)sq.classList.add('best-from'); if(index===to)sq.classList.add('best-to');
-    sq.dataset.index=String(index); sq.setAttribute('aria-label',squareName(index)+(board[index]?' '+board[index]:' empty'));
-    sq.textContent=board[index]?pieceGlyph[board[index]]:''; sq.onclick=()=>openPiecePicker(index); el.appendChild(sq);
+    const index=boardFlipped?63-display:display;
+    const row=Math.floor(display/8),col=display%8;
+    const sq=document.createElement('button');
+    sq.type='button';
+    sq.className='board-square '+((row+col)%2?'dark':'light');
+    if(index===from)sq.classList.add('best-from');
+    if(index===to)sq.classList.add('best-to');
+    sq.dataset.index=String(index);
+    sq.setAttribute('aria-label',squareName(index)+(board[index]?' '+board[index]:' empty'));
+    sq.textContent=board[index]?pieceGlyph[board[index]]:'';
+    sq.onclick=()=>openPiecePicker(index);
+    el.appendChild(sq);
   }
   updateValidity();
 }
+
 function updateValidity(){
-  const pill=$('#position-validity'); if(!pill)return;
+  const pill=$('#position-validity');
+  if(!pill)return;
   const ok=board.filter(x=>x==='K').length===1&&board.filter(x=>x==='k').length===1;
-  pill.textContent=ok?'Looks valid':'Check kings'; pill.classList.toggle('warning',!ok);
+  pill.textContent=ok?'Looks valid':'Check kings';
+  pill.classList.toggle('warning',!ok);
 }
+
 function openPiecePicker(index){selectedSquare=index;$('#piece-picker').hidden=false;}
 function closePiecePicker(){if($('#piece-picker'))$('#piece-picker').hidden=true;selectedSquare=null;}
+
 function setSelectedSquare(piece){
   if(selectedSquare==null)return;
-  board[selectedSquare]=piece||null; placement=boardToPlacement(board); bestMoveUci=''; updateFen(); renderBoard();
-  clearEngineResults('Position corrected. Ready to analyse.'); saveCurrentToHistory(); closePiecePicker();
+  board[selectedSquare]=piece||null;
+  placement=boardToPlacement(board);
+  bestMoveUci='';
+  updateFen();
+  renderBoard();
+  clearEngineResults('Position corrected. Ready to analyse.');
+  saveCurrentToHistory();
+  closePiecePicker();
 }
 
 function openingForFen(fen){const [p,t]=fen.split(' ');return OPENINGS.get(`${p} ${t}`)||'';}
+
 function updateOpening(){
-  const fen=$('#fen')?.textContent||'',name=openingForFen(fen),panel=$('#opening-panel');
-  if(!panel)return; panel.hidden=!name; if(name)$('#opening-name').textContent=name;
+  const fen=$('#fen')?.textContent||'';
+  const name=openingForFen(fen);
+  const panel=$('#opening-panel');
+  if(!panel)return;
+  panel.hidden=!name;
+  if(name)$('#opening-name').textContent=name;
 }
+
 function updateFen(){
   if(!placement)return'';
-  const fen=placementToFen(placement,$('#turn').value); $('#fen').textContent=fen;
+  const fen=placementToFen(placement,$('#turn').value);
+  $('#fen').textContent=fen;
   $('#analyse').href='https://lichess.org/analysis/standard/'+fen.replaceAll(' ','_');
   coachessUrl='https://coachess.app/coach/position?fen='+encodeURIComponent(fen)+(boardFlipped?'&pov=black':'')+'&ref=chesschecker';
-  updateOpening(); return fen;
+  updateOpening();
+  return fen;
 }
 
 function shareUrl(){
-  const fen=$('#fen')?.textContent;if(!fen)return'';
-  const u=new URL(location.origin+location.pathname);u.searchParams.set('fen',fen);if(boardFlipped)u.searchParams.set('pov','black');return u.toString();
+  const fen=$('#fen')?.textContent;
+  if(!fen)return'';
+  const u=new URL(location.origin+location.pathname);
+  u.searchParams.set('fen',fen);
+  if(boardFlipped)u.searchParams.set('pov','black');
+  return u.toString();
 }
+
 async function copyText(text){
   try{await navigator.clipboard.writeText(text);return true;}catch(_){return legacyCopy(text);}
 }
+
 async function copyShareLink(){
-  const url=shareUrl();if(!url)return;const ok=await copyText(url);$('#copy-link').textContent=ok?'Copied ✓':'Copy failed';setTimeout(()=>$('#copy-link').textContent='Copy link',1200);
+  const url=shareUrl();
+  if(!url)return;
+  const ok=await copyText(url);
+  $('#copy-link').textContent=ok?'Copied ✓':'Copy failed';
+  setTimeout(()=>$('#copy-link').textContent='Copy link',1200);
 }
+
 async function sharePosition(){
-  const url=shareUrl();if(!url)return;
-  if(navigator.share){try{await navigator.share({title:'Chess Checker position',text:'Analyse this chess position',url});return;}catch(_){}}
+  const url=shareUrl();
+  if(!url)return;
+  if(navigator.share){
+    try{await navigator.share({title:'Chess Checker position',text:'Analyse this chess position',url});return;}catch(_){}
+  }
   await copyShareLink();
 }
 
 function getHistory(){try{return JSON.parse(localStorage.getItem(HISTORY_KEY)||'[]');}catch(_){return[];}}
 function putHistory(items){localStorage.setItem(HISTORY_KEY,JSON.stringify(items.slice(0,MAX_HISTORY)));}
+
 function saveCurrentToHistory(extra={}){
-  const fen=$('#fen')?.textContent;if(!fen)return;
-  const items=getHistory().filter(x=>x.fen!==fen);items.unshift({fen,ts:Date.now(),opening:openingForFen(fen),thumb:currentThumb||'',best:bestMoveUci||'',...extra});putHistory(items);renderHistory();
+  const fen=$('#fen')?.textContent;
+  if(!fen)return;
+  const items=getHistory().filter(x=>x.fen!==fen);
+  items.unshift({fen,ts:Date.now(),opening:openingForFen(fen),thumb:currentThumb||'',best:bestMoveUci||'',...extra});
+  putHistory(items);
+  renderHistory();
 }
+
 function updateHistoryAnalysis(){
-  const fen=$('#fen')?.textContent;if(!fen)return;const rows=[...engineLines.values()].sort((a,b)=>a.multipv-b.multipv);
-  const items=getHistory(),hit=items.find(x=>x.fen===fen);if(hit&&rows[0]){hit.best=rows[0].move;hit.eval=normalisedEvaluation(rows[0]);hit.ts=Date.now();putHistory(items);renderHistory();}
-}
-function renderHistory(){
-  const list=$('#history-list');if(!list)return;const items=getHistory();list.innerHTML='';$('#history-panel').hidden=items.length===0;
-  for(const item of items){
-    const row=document.createElement('button');row.type='button';row.className='history-item';
-    const when=new Date(item.ts).toLocaleString([],{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
-    row.innerHTML=`${item.thumb?`<img src="${item.thumb}" alt="">`:'<div class="history-thumb-placeholder">♞</div>'}<div class="history-copy"><strong>${item.opening||'Chess position'}</strong><span>${when}${item.best?` · ${item.best}${item.eval?` (${item.eval})`:''}`:''}</span></div><span class="history-open">Open</span>`;
-    row.onclick=()=>loadFen(item.fen,false,item.thumb||'');list.appendChild(row);
+  const fen=$('#fen')?.textContent;
+  if(!fen)return;
+  const rows=[...engineLines.values()].sort((a,b)=>a.multipv-b.multipv);
+  const items=getHistory();
+  const hit=items.find(x=>x.fen===fen);
+  if(hit&&rows[0]){
+    hit.best=rows[0].move;
+    hit.eval=normalisedEvaluation(rows[0]);
+    hit.ts=Date.now();
+    putHistory(items);
+    renderHistory();
   }
 }
+
+function renderHistory(){
+  const list=$('#history-list');
+  if(!list)return;
+  const items=getHistory();
+  list.innerHTML='';
+  $('#history-panel').hidden=items.length===0;
+  for(const item of items){
+    const row=document.createElement('button');
+    row.type='button';
+    row.className='history-item';
+    const when=new Date(item.ts).toLocaleString([],{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+    row.innerHTML=`${item.thumb?`<img src="${item.thumb}" alt="">`:'<div class="history-thumb-placeholder">♞</div>'}<div class="history-copy"><strong>${item.opening||'Chess position'}</strong><span>${when}${item.best?` · ${item.best}${item.eval?` (${item.eval})`:''}`:''}</span></div><span class="history-open">Open</span>`;
+    row.onclick=()=>loadFen(item.fen,false,item.thumb||'');
+    list.appendChild(row);
+  }
+}
+
 async function makeThumbnail(file){
   try{
-    const img=await createImageBitmap(file),canvas=document.createElement('canvas'),size=128;canvas.width=size;canvas.height=size;
-    const ctx=canvas.getContext('2d'),scale=Math.max(size/img.width,size/img.height),w=img.width*scale,h=img.height*scale;
-    ctx.drawImage(img,(size-w)/2,(size-h)/2,w,h);img.close?.();return canvas.toDataURL('image/jpeg',0.55);
+    const img=await createImageBitmap(file);
+    const canvas=document.createElement('canvas');
+    const size=128;
+    canvas.width=size;
+    canvas.height=size;
+    const ctx=canvas.getContext('2d');
+    const scale=Math.max(size/img.width,size/img.height);
+    const w=img.width*scale,h=img.height*scale;
+    ctx.drawImage(img,(size-w)/2,(size-h)/2,w,h);
+    img.close?.();
+    return canvas.toDataURL('image/jpeg',0.55);
   }catch(_){return'';}
 }
 
 function loadFen(fen,fromUrl=false,thumb=''){
   ensureEnhancements();
   try{
-    const chess=new Chess(fen),parts=chess.fen().split(' ');placement=parts[0];board=parsePlacement(placement);$('#turn').value=parts[1];
-    boardFlipped=new URLSearchParams(location.search).get('pov')==='black';currentThumb=thumb;bestMoveUci='';
-    updateFen();renderBoard();clearEngineResults('Analyse this position directly on this device.');$('#confidence').textContent=fromUrl?'Shared':'Saved';$('#result').hidden=false;$('#preview').hidden=true;
-    $('#status').textContent=fromUrl?'Shared position loaded.':'Saved position loaded.';saveCurrentToHistory();
-  }catch(e){if(fromUrl)$('#status').textContent='That shared position is not valid.';}
+    const chess=new Chess(fen);
+    const parts=chess.fen().split(' ');
+    placement=parts[0];
+    board=parsePlacement(placement);
+    $('#turn').value=parts[1];
+    boardFlipped=new URLSearchParams(location.search).get('pov')==='black';
+    currentThumb=thumb;
+    bestMoveUci='';
+    updateFen();
+    renderBoard();
+    resetBoardEditor();
+    clearEngineResults('Analyse this position directly on this device.');
+    $('#confidence').textContent=fromUrl?'Shared':'Saved';
+    $('#result').hidden=false;
+    $('#preview').hidden=true;
+    $('#status').textContent=fromUrl?'Shared position loaded.':'Saved position loaded.';
+    saveCurrentToHistory();
+  }catch(e){
+    if(fromUrl)$('#status').textContent='That shared position is not valid.';
+  }
 }
 
 function regionMetrics(ctx,x0,y0,x1,y1){
-  const w=Math.max(1,Math.floor(x1-x0)),h=Math.max(1,Math.floor(y1-y0));if(w<4||h<4)return null;
-  const data=ctx.getImageData(Math.floor(x0),Math.floor(y0),w,h).data;let total=0,bright=0,count=0;
-  for(let i=0;i<data.length;i+=16){const lum=.2126*data[i]+.7152*data[i+1]+.0722*data[i+2];total+=lum;if(lum>165)bright++;count++;}
+  const w=Math.max(1,Math.floor(x1-x0)),h=Math.max(1,Math.floor(y1-y0));
+  if(w<4||h<4)return null;
+  const data=ctx.getImageData(Math.floor(x0),Math.floor(y0),w,h).data;
+  let total=0,bright=0,count=0;
+  for(let i=0;i<data.length;i+=16){
+    const lum=.2126*data[i]+.7152*data[i+1]+.0722*data[i+2];
+    total+=lum;
+    if(lum>165)bright++;
+    count++;
+  }
   return{mean:total/count,bright:bright/count};
 }
+
 async function inferTurnFromScreenshot(file,corners,bottomSide){
-  const fallback={side:bottomSide,source:'orientation'};if(!corners||!('createImageBitmap'in window))return fallback;
+  const fallback={side:bottomSide,source:'orientation'};
+  if(!corners||!('createImageBitmap'in window))return fallback;
   try{
-    const image=await createImageBitmap(file),canvas=document.createElement('canvas');canvas.width=image.width;canvas.height=image.height;
-    const ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(image,0,0);image.close?.();
-    const bw=corners.x1-corners.x0,bh=corners.y1-corners.y0,x0=Math.max(0,corners.x0+bw*.55),x1=Math.min(canvas.width,corners.x1);
+    const image=await createImageBitmap(file);
+    const canvas=document.createElement('canvas');
+    canvas.width=image.width;
+    canvas.height=image.height;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    ctx.drawImage(image,0,0);
+    image.close?.();
+    const bw=corners.x1-corners.x0,bh=corners.y1-corners.y0;
+    const x0=Math.max(0,corners.x0+bw*.55),x1=Math.min(canvas.width,corners.x1);
     const top=regionMetrics(ctx,x0,Math.max(0,corners.y0-bh*.20),x1,Math.max(0,corners.y0-bh*.015));
     const bottom=regionMetrics(ctx,x0,Math.min(canvas.height,corners.y1+bh*.015),x1,Math.min(canvas.height,corners.y1+bh*.20));
-    if(!top||!bottom)return fallback;const difference=(top.mean+top.bright*90)-(bottom.mean+bottom.bright*90);if(Math.abs(difference)<18)return fallback;
-    const topSide=bottomSide==='w'?'b':'w';return{side:difference>0?topSide:bottomSide,source:'active-clock'};
+    if(!top||!bottom)return fallback;
+    const difference=(top.mean+top.bright*90)-(bottom.mean+bottom.bright*90);
+    if(Math.abs(difference)<18)return fallback;
+    const topSide=bottomSide==='w'?'b':'w';
+    return{side:difference>0?topSide:bottomSide,source:'active-clock'};
   }catch(_){return fallback;}
 }
 
 function legacyCopy(text){
-  const ta=document.createElement('textarea');ta.value=text;ta.setAttribute('readonly','');ta.style.position='fixed';ta.style.left='-9999px';ta.style.fontSize='16px';document.body.appendChild(ta);ta.focus();ta.select();ta.setSelectionRange(0,ta.value.length);
-  let ok=false;try{ok=document.execCommand('copy');}catch(_){}ta.remove();return ok;
+  const ta=document.createElement('textarea');
+  ta.value=text;
+  ta.setAttribute('readonly','');
+  ta.style.position='fixed';
+  ta.style.left='-9999px';
+  ta.style.fontSize='16px';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  ta.setSelectionRange(0,ta.value.length);
+  let ok=false;
+  try{ok=document.execCommand('copy');}catch(_){}
+  ta.remove();
+  return ok;
 }
-async function tryAutomaticCopy(fen){if(!fen||!navigator.clipboard?.writeText)return false;try{await navigator.clipboard.writeText(fen);return true;}catch(_){return false;}}
+
+async function tryAutomaticCopy(fen){
+  if(!fen||!navigator.clipboard?.writeText)return false;
+  try{await navigator.clipboard.writeText(fen);return true;}catch(_){return false;}
+}
 
 async function scan(file){
-  ensureEnhancements();$('#status').textContent='Reading chessboard…';$('#result').hidden=true;$('#preview').src=URL.createObjectURL(file);$('#preview').hidden=false;currentThumb=await makeThumbnail(file);
+  ensureEnhancements();
+  resetBoardEditor();
+  $('#status').textContent='Reading chessboard…';
+  $('#result').hidden=true;
+  $('#preview').src=URL.createObjectURL(file);
+  $('#preview').hidden=false;
+  currentThumb=await makeThumbnail(file);
   try{
-    const result=await recognizer.recognize(file);if(!result){$('#status').textContent='No chessboard detected.';return;}
-    const oriented=resolveOrientation(result.placement);placement=oriented.placement;boardFlipped=oriented.orientation==='black';board=parsePlacement(placement);bestMoveUci='';
-    const bottomSide=boardFlipped?'b':'w',turn=await inferTurnFromScreenshot(file,result.corners,bottomSide);$('#turn').value=turn.side;
-    const hint=$('#result .hint');if(hint)hint.textContent=turn.source==='active-clock'?'Side to move detected from the active player clock. Change it if needed.':'Side to move estimated from board orientation. Change it if needed.';
-    $('#confidence').textContent=Math.round(result.meanConfidence*100)+'%';const fen=updateFen();renderBoard();clearEngineResults('Analyse the recognised position directly on this device.');$('#result').hidden=false;saveCurrentToHistory();
-    const copied=await tryAutomaticCopy(fen),recognised=result.reliable?'Board recognised.':'Board recognised with low confidence. Check the board and correct any piece if needed.';
+    const result=await recognizer.recognize(file);
+    if(!result){$('#status').textContent='No chessboard detected.';return;}
+    const oriented=resolveOrientation(result.placement);
+    placement=oriented.placement;
+    boardFlipped=oriented.orientation==='black';
+    board=parsePlacement(placement);
+    bestMoveUci='';
+    const bottomSide=boardFlipped?'b':'w';
+    const turn=await inferTurnFromScreenshot(file,result.corners,bottomSide);
+    $('#turn').value=turn.side;
+    const hint=$('#result .hint');
+    if(hint)hint.textContent=turn.source==='active-clock'
+      ?'Side to move detected from the active player clock. Change it if needed.'
+      :'Side to move estimated from board orientation. Change it if needed.';
+    $('#confidence').textContent=Math.round(result.meanConfidence*100)+'%';
+    const fen=updateFen();
+    renderBoard();
+    clearEngineResults('Analyse the recognised position directly on this device.');
+    $('#result').hidden=false;
+    saveCurrentToHistory();
+    const copied=await tryAutomaticCopy(fen);
+    const recognised=result.reliable?'Board recognised.':'Board recognised with low confidence. Check the board and correct any piece if needed.';
     $('#status').textContent=copied?recognised+' FEN copied automatically.':recognised+' Tap Copy FEN to copy it.';
-  }catch(e){console.error(e);$('#status').textContent='Recognition failed. Reload and try again.';}
+  }catch(e){
+    console.error(e);
+    $('#status').textContent='Recognition failed. Reload and try again.';
+  }
 }
+
 async function scanClipboardImage(){
   $('#status').textContent='Reading clipboard screenshot…';
   try{
-    if(!navigator.clipboard?.read)throw new Error('Clipboard unavailable');const items=await navigator.clipboard.read();
-    for(const item of items){const type=item.types.find(t=>t.startsWith('image/'));if(!type)continue;const blob=await item.getType(type);await scan(new File([blob],'clipboard-screenshot',{type}));return;}
+    if(!navigator.clipboard?.read)throw new Error('Clipboard unavailable');
+    const items=await navigator.clipboard.read();
+    for(const item of items){
+      const type=item.types.find(t=>t.startsWith('image/'));
+      if(!type)continue;
+      const blob=await item.getType(type);
+      await scan(new File([blob],'clipboard-screenshot',{type}));
+      return;
+    }
     $('#status').textContent='No image found on the clipboard. Copy or share the screenshot and try again.';
-  }catch(e){console.error(e);$('#status').textContent='Clipboard access was blocked. Tap Upload screenshot instead.';}
+  }catch(e){
+    console.error(e);
+    $('#status').textContent='Clipboard access was blocked. Tap Upload screenshot instead.';
+  }
 }
 
 function clearEngineResults(message){
-  if($('#engine-results'))$('#engine-results').innerHTML='';if($('#engine-status')&&message)$('#engine-status').textContent=message;engineLines.clear();bestMoveUci='';renderBoard();
+  if($('#engine-results'))$('#engine-results').innerHTML='';
+  if($('#engine-status')&&message)$('#engine-status').textContent=message;
+  engineLines.clear();
+  bestMoveUci='';
+  renderBoard();
 }
+
 function waitForEngine(worker,command,expected,timeout=45000){
   return new Promise((resolve,reject)=>{
-    const timer=setTimeout(()=>{worker.removeEventListener('message',handler);reject(new Error('Stockfish timed out waiting for '+expected));},timeout);
-    const handler=e=>{const line=String(e.data||'');if(line.includes(expected)){clearTimeout(timer);worker.removeEventListener('message',handler);resolve();}};
-    worker.addEventListener('message',handler);worker.postMessage(command);
+    const timer=setTimeout(()=>{
+      worker.removeEventListener('message',handler);
+      reject(new Error('Stockfish timed out waiting for '+expected));
+    },timeout);
+    const handler=e=>{
+      const line=String(e.data||'');
+      if(line.includes(expected)){
+        clearTimeout(timer);
+        worker.removeEventListener('message',handler);
+        resolve();
+      }
+    };
+    worker.addEventListener('message',handler);
+    worker.postMessage(command);
   });
 }
+
 async function createLiteStockfishWorker(){
   const base='https://cdn.jsdelivr.net/npm/stockfish@18.0.8/bin/';
-  const jsUrl=base+'stockfish-18-lite-single.js',wasmUrl=base+'stockfish-18-lite-single.wasm';
-  const response=await fetch(jsUrl,{cache:'force-cache'});if(!response.ok)throw new Error('Stockfish loader HTTP '+response.status);
+  const jsUrl=base+'stockfish-18-lite-single.js';
+  const wasmUrl=base+'stockfish-18-lite-single.wasm';
+  const response=await fetch(jsUrl,{cache:'force-cache'});
+  if(!response.ok)throw new Error('Stockfish loader HTTP '+response.status);
   let code=await response.text();
   code=code.replaceAll('stockfish-18-lite-single.wasm',wasmUrl);
   const blobUrl=URL.createObjectURL(new Blob([code],{type:'text/javascript'}));
-  const worker=new Worker(blobUrl);worker.__blobUrl=blobUrl;return worker;
+  const worker=new Worker(blobUrl);
+  worker.__blobUrl=blobUrl;
+  return worker;
 }
+
 async function createAsmFallbackWorker(){
   const url='https://cdn.jsdelivr.net/npm/stockfish@18.0.8/bin/stockfish-18-asm.js';
-  const response=await fetch(url,{cache:'force-cache'});if(!response.ok)throw new Error('Stockfish fallback HTTP '+response.status);
+  const response=await fetch(url,{cache:'force-cache'});
+  if(!response.ok)throw new Error('Stockfish fallback HTTP '+response.status);
   const blobUrl=URL.createObjectURL(new Blob([await response.text()],{type:'text/javascript'}));
-  const worker=new Worker(blobUrl);worker.__blobUrl=blobUrl;return worker;
+  const worker=new Worker(blobUrl);
+  worker.__blobUrl=blobUrl;
+  return worker;
 }
+
 async function initialiseWorker(worker){
-  worker.addEventListener('message',handleEngineMessage);await waitForEngine(worker,'uci','uciok',45000);worker.postMessage('setoption name MultiPV value 3');await waitForEngine(worker,'isready','readyok',30000);return worker;
+  worker.addEventListener('message',handleEngineMessage);
+  await waitForEngine(worker,'uci','uciok',45000);
+  worker.postMessage('setoption name MultiPV value 3');
+  await waitForEngine(worker,'isready','readyok',30000);
+  return worker;
 }
+
 async function getEngine(){
-  if(engineWorker)return engineWorker;if(engineLoading)return engineLoading;
+  if(engineWorker)return engineWorker;
+  if(engineLoading)return engineLoading;
   engineLoading=(async()=>{
     $('#engine-status').textContent='Loading Stockfish on this device…';
     try{
-      engineWorker=await initialiseWorker(await createLiteStockfishWorker());$('#engine-badge').textContent='Stockfish 18';return engineWorker;
+      engineWorker=await initialiseWorker(await createLiteStockfishWorker());
+      $('#engine-badge').textContent='Stockfish 18';
+      return engineWorker;
     }catch(firstError){
-      console.warn('Lite Stockfish failed, trying compatibility engine',firstError);$('#engine-status').textContent='Loading compatibility engine…';
-      try{engineWorker=await initialiseWorker(await createAsmFallbackWorker());$('#engine-badge').textContent='Stockfish 18';return engineWorker;}
-      catch(secondError){console.error('Stockfish failed',firstError,secondError);throw secondError;}
+      console.warn('Lite Stockfish failed, trying compatibility engine',firstError);
+      $('#engine-status').textContent='Loading compatibility engine…';
+      try{
+        engineWorker=await initialiseWorker(await createAsmFallbackWorker());
+        $('#engine-badge').textContent='Stockfish 18';
+        return engineWorker;
+      }catch(secondError){
+        console.error('Stockfish failed',firstError,secondError);
+        throw secondError;
+      }
     }
-  })().finally(()=>engineLoading=null);return engineLoading;
-}
-function parseEngineInfo(line){
-  const multipv=Number(line.match(/\bmultipv\s+(\d+)/)?.[1]||1),depth=Number(line.match(/\bdepth\s+(\d+)/)?.[1]||0),score=line.match(/\bscore\s+(cp|mate)\s+(-?\d+)/),pv=line.match(/\bpv\s+([a-h][1-8][a-h][1-8][qrbn]?)/);
-  return score&&pv?{multipv,depth,type:score[1],value:Number(score[2]),move:pv[1]}:null;
-}
-function normalisedEvaluation(info){
-  let value=info.value;if($('#turn').value==='b')value=-value;if(info.type==='mate')return value>0?`Mate +${value}`:`Mate ${value}`;const pawns=value/100;return(pawns>0?'+':'')+pawns.toFixed(2);
-}
-function moveToSan(uci){
-  try{const chess=new Chess($('#fen').textContent),move=chess.move({from:uci.slice(0,2),to:uci.slice(2,4),promotion:uci[4]||'q'});return move?.san||uci;}catch(_){return uci;}
-}
-function renderEngineResults(){
-  const results=$('#engine-results');if(!results)return;const rows=[...engineLines.values()].sort((a,b)=>a.multipv-b.multipv).slice(0,3);results.innerHTML='';
-  rows.forEach((info,i)=>{const row=document.createElement('div');row.className='engine-result-row';row.innerHTML=`<span class="engine-rank">${i+1}</span><strong>${moveToSan(info.move)}</strong><span class="engine-uci">${info.move}</span><span class="engine-eval">${normalisedEvaluation(info)}</span>`;results.appendChild(row);});
-  if(rows[0]){bestMoveUci=rows[0].move;renderBoard();}
-}
-function handleEngineMessage(e){
-  const line=String(e.data||'');
-  if(line.startsWith('info ')){const info=parseEngineInfo(line);if(info){const previous=engineLines.get(info.multipv);if(!previous||info.depth>=previous.depth)engineLines.set(info.multipv,info);renderEngineResults();$('#engine-status').textContent=`Analysing… depth ${info.depth}`;}}
-  if(line.startsWith('bestmove')){engineBusy=false;const best=line.match(/^bestmove\s+([^\s]+)/)?.[1];if(best&&best!=='(none)')bestMoveUci=best;renderEngineResults();updateHistoryAnalysis();$('#engine-status').textContent=engineLines.size?'Best move highlighted on the board. Evaluation is from White’s point of view.':'Analysis finished.';$('#find-best').textContent='Analyse again';}
-}
-async function analyseWithStockfish(){
-  const fen=$('#fen').textContent;if(!fen||engineBusy)return;
-  try{new Chess(fen);}catch(_){$('#engine-status').textContent='Correct the position before analysing. It is not a valid chess position.';return;}
-  const btn=$('#find-best');btn.textContent='Loading…';engineLines.clear();bestMoveUci='';renderBoard();$('#engine-results').innerHTML='';
-  try{
-    const worker=await getEngine();engineBusy=true;btn.textContent='Analysing…';worker.postMessage('stop');worker.postMessage('ucinewgame');worker.postMessage(`position fen ${fen}`);worker.postMessage('go depth 14');
-  }catch(e){console.error(e);engineBusy=false;btn.textContent='Find best move';$('#engine-status').textContent='Stockfish could not load. Check your connection and try again.';}
+  })().finally(()=>engineLoading=null);
+  return engineLoading;
 }
 
-initTheme();ensureEnhancements();
+function parseEngineInfo(line){
+  const multipv=Number(line.match(/\bmultipv\s+(\d+)/)?.[1]||1);
+  const depth=Number(line.match(/\bdepth\s+(\d+)/)?.[1]||0);
+  const score=line.match(/\bscore\s+(cp|mate)\s+(-?\d+)/);
+  const pv=line.match(/\bpv\s+([a-h][1-8][a-h][1-8][qrbn]?)/);
+  return score&&pv?{multipv,depth,type:score[1],value:Number(score[2]),move:pv[1]}:null;
+}
+
+function normalisedEvaluation(info){
+  let value=info.value;
+  if($('#turn').value==='b')value=-value;
+  if(info.type==='mate')return value>0?`Mate +${value}`:`Mate ${value}`;
+  const pawns=value/100;
+  return(pawns>0?'+':'')+pawns.toFixed(2);
+}
+
+function moveToSan(uci){
+  try{
+    const chess=new Chess($('#fen').textContent);
+    const move=chess.move({from:uci.slice(0,2),to:uci.slice(2,4),promotion:uci[4]||'q'});
+    return move?.san||uci;
+  }catch(_){return uci;}
+}
+
+function renderEngineResults(){
+  const results=$('#engine-results');
+  if(!results)return;
+  const rows=[...engineLines.values()].sort((a,b)=>a.multipv-b.multipv).slice(0,3);
+  results.innerHTML='';
+  rows.forEach((info,i)=>{
+    const row=document.createElement('div');
+    row.className='engine-result-row';
+    row.innerHTML=`<span class="engine-rank">${i+1}</span><strong>${moveToSan(info.move)}</strong><span class="engine-uci">${info.move}</span><span class="engine-eval">${normalisedEvaluation(info)}</span>`;
+    results.appendChild(row);
+  });
+  if(rows[0]){
+    bestMoveUci=rows[0].move;
+    renderBoard();
+  }
+}
+
+function handleEngineMessage(e){
+  const line=String(e.data||'');
+  if(line.startsWith('info ')){
+    const info=parseEngineInfo(line);
+    if(info){
+      const previous=engineLines.get(info.multipv);
+      if(!previous||info.depth>=previous.depth)engineLines.set(info.multipv,info);
+      renderEngineResults();
+      $('#engine-status').textContent=`Analysing… depth ${info.depth}`;
+    }
+  }
+  if(line.startsWith('bestmove')){
+    engineBusy=false;
+    const best=line.match(/^bestmove\s+([^\s]+)/)?.[1];
+    if(best&&best!=='(none)')bestMoveUci=best;
+    renderEngineResults();
+    updateHistoryAnalysis();
+    $('#engine-status').textContent=engineLines.size
+      ?'Best move highlighted on the board. Evaluation is from White’s point of view.'
+      :'Analysis finished.';
+    $('#find-best').textContent='Analyse again';
+  }
+}
+
+async function analyseWithStockfish(){
+  const fen=$('#fen').textContent;
+  if(!fen||engineBusy)return;
+  try{new Chess(fen);}catch(_){
+    $('#engine-status').textContent='Correct the position before analysing. It is not a valid chess position.';
+    return;
+  }
+  const btn=$('#find-best');
+  btn.textContent='Loading…';
+  engineLines.clear();
+  bestMoveUci='';
+  renderBoard();
+  $('#engine-results').innerHTML='';
+  try{
+    const worker=await getEngine();
+    engineBusy=true;
+    btn.textContent='Analysing…';
+    worker.postMessage('stop');
+    worker.postMessage('ucinewgame');
+    worker.postMessage(`position fen ${fen}`);
+    worker.postMessage('go depth 14');
+  }catch(e){
+    console.error(e);
+    engineBusy=false;
+    btn.textContent='Find best move';
+    $('#engine-status').textContent='Stockfish could not load. Check your connection and try again.';
+  }
+}
+
+initTheme();
+ensureEnhancements();
 $('#clipboard').onclick=scanClipboardImage;
 $('#choose').onclick=()=>$('#file').click();
 $('#file').onchange=()=>{const f=$('#file').files?.[0];if(f)scan(f);};
-$('#turn').onchange=async()=>{const fen=updateFen();clearEngineResults('Side to move updated. Ready to analyse.');saveCurrentToHistory();const copied=await tryAutomaticCopy(fen);$('#status').textContent=copied?'Side to move updated. FEN copied automatically.':'Side to move updated. Tap Copy FEN to copy it.';};
-$('#copy').onclick=async()=>{const fen=$('#fen').textContent;if(!fen)return;const copied=await copyText(fen);if(copied){$('#copy').textContent='Copied ✓';$('#status').textContent='FEN copied.';setTimeout(()=>$('#copy').textContent='Copy FEN',1200);}else $('#status').textContent='Safari blocked clipboard access. Press and hold the FEN, then choose Copy.';};
-$('#coachess').onclick=()=>{if(!coachessUrl){$('#status').textContent='Recognise a board first.';return;}window.location.assign(coachessUrl);};
-window.addEventListener('paste',e=>{const item=[...(e.clipboardData?.items||[])].find(i=>i.type.startsWith('image/')),f=item?.getAsFile();if(f)scan(f);});
+$('#turn').onchange=async()=>{
+  const fen=updateFen();
+  clearEngineResults('Side to move updated. Ready to analyse.');
+  saveCurrentToHistory();
+  const copied=await tryAutomaticCopy(fen);
+  $('#status').textContent=copied?'Side to move updated. FEN copied automatically.':'Side to move updated. Tap Copy FEN to copy it.';
+};
+$('#copy').onclick=async()=>{
+  const fen=$('#fen').textContent;
+  if(!fen)return;
+  const copied=await copyText(fen);
+  if(copied){
+    $('#copy').textContent='Copied ✓';
+    $('#status').textContent='FEN copied.';
+    setTimeout(()=>$('#copy').textContent='Copy FEN',1200);
+  }else{
+    $('#status').textContent='Safari blocked clipboard access. Press and hold the FEN, then choose Copy.';
+  }
+};
+$('#coachess').onclick=()=>{
+  if(!coachessUrl){$('#status').textContent='Recognise a board first.';return;}
+  window.location.assign(coachessUrl);
+};
+window.addEventListener('paste',e=>{
+  const item=[...(e.clipboardData?.items||[])].find(i=>i.type.startsWith('image/'));
+  const f=item?.getAsFile();
+  if(f)scan(f);
+});
 
-const params=new URLSearchParams(location.search);if(params.get('fen'))loadFen(params.get('fen'),true);
+const params=new URLSearchParams(location.search);
+if(params.get('fen'))loadFen(params.get('fen'),true);
 recognizer.warmUp().catch(()=>{});
