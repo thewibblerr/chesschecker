@@ -136,7 +136,7 @@ function ensureEnhancements() {
   topLine.insertAdjacentElement('afterend',boardEditor);
 
   const fenLabel = result.querySelector('.fen-label');
-  if (fenLabel) fenLabel.textContent = 'FEN - automatically copied, click to copy again';
+  if (fenLabel) fenLabel.textContent = 'FEN - automatically copied';
   const fenEl = $('#fen');
   if (fenEl) {
     fenEl.setAttribute('role','button');
@@ -147,15 +147,34 @@ function ensureEnhancements() {
       const fen=fenEl.textContent;
       if(!fen)return;
       const copied=await copyText(fen);
-      $('#status').textContent=copied?'FEN copied again.':'Safari blocked clipboard access. Press and hold the FEN, then choose Copy.';
+      const fenBlock=fenEl.closest('.fen-block');
+      if(copied){
+        if(fenLabel) fenLabel.textContent='FEN - copied ✓';
+        if(fenBlock){
+          fenBlock.style.transition='box-shadow .15s ease';
+          fenBlock.style.boxShadow='0 0 0 2px #22c55e';
+        }
+        $('#status').textContent='FEN copied again.';
+        setTimeout(()=>{
+          if(fenLabel) fenLabel.textContent='FEN - automatically copied';
+          if(fenBlock) fenBlock.style.boxShadow='';
+        },1200);
+      }else{
+        $('#status').textContent='Safari blocked clipboard access. Press and hold the FEN, then choose Copy.';
+      }
     };
     fenEl.onclick=copyFenAgain;
     fenEl.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();copyFenAgain();}};
   }
   const oldCopy = $('#copy');
   if (oldCopy) oldCopy.remove();
+  const analyseButton = $('#analyse');
+  if (analyseButton) analyseButton.className='primary action-link';
   const coachessButton = $('#coachess');
-  if (coachessButton) coachessButton.textContent='Analyse on Coachess';
+  if (coachessButton) {
+    coachessButton.textContent='Analyse on Coachess';
+    coachessButton.className='primary';
+  }
 
   const actions = result.querySelector('.buttons');
   if (actions) actions.style.gridTemplateColumns='repeat(2,1fr)';
@@ -175,6 +194,8 @@ function ensureEnhancements() {
     </div>
     <div id="piece-picker" class="piece-picker" hidden><div class="piece-picker-card" role="dialog" aria-modal="true" aria-label="Choose a piece"><div class="piece-picker-head"><strong>Set square</strong><button id="piece-picker-close" class="picker-close" type="button">×</button></div><div id="piece-options" class="piece-options"></div></div></div>`;
   while(wrapper.firstChild) result.insertBefore(wrapper.firstChild,actions);
+  const sharePanel=$('#share-panel');
+  if(actions&&sharePanel) sharePanel.parentNode.insertBefore(actions,sharePanel);
 
   const history=document.createElement('section');
   history.id='history-panel'; history.className='card history-card';
