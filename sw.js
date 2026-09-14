@@ -1,4 +1,4 @@
-const CACHE='chesschecker-v3';
+const CACHE='chesschecker-v4';
 const CORE=['/','/index.html','/style.css','/src.js','/clipboard-fix.js','/manifest.webmanifest','/icon.svg','/analyse-chess-moves.html'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))).then(()=>self.clients.claim()));});
