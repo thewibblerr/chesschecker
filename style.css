@@ -6,3 +6,44 @@
 .piece-option:first-child{grid-column:1/-1;min-height:46px}
 :root[data-theme="dark"] .piece-side-label{color:#9aa6ba}
 @media(min-width:431px){.piece-options{grid-template-columns:repeat(6,1fr)}.piece-option:first-child{grid-column:1/-1}.piece-side-label{grid-column:1/-1}}
+
+
+/* Compact mobile layout */
+@media(max-width:560px){
+  main{padding:18px 12px 36px}
+  .hero{flex-wrap:nowrap;gap:12px;margin:2px 0 14px;align-items:center}
+  .brand-logo{width:72px;height:72px;flex:0 0 72px;border-radius:18px}
+  h1{font-size:30px}
+  h2{font-size:19px}
+  .subtitle{margin-top:4px;font-size:13px;line-height:1.35}
+  .card{padding:14px;margin:10px 0;border-radius:18px}
+  .section-heading,.result-topline{margin-bottom:12px}
+  .upload-actions,.buttons{grid-template-columns:1fr 1fr!important;gap:8px}
+  button,a{min-height:42px;padding:9px 10px;border-radius:12px;font-size:13px}
+  .status{margin-top:10px;padding:9px 10px;font-size:12px;line-height:1.35}
+  #preview{margin-top:10px}
+  .control-row{padding-top:10px}
+  select{padding:8px 10px}
+  .hint{margin:6px 0 11px}
+  .fen-block{padding:11px;margin-bottom:10px}
+  #result>.buttons{margin-top:10px}
+  #result>.analysis-preference{margin:6px 2px 2px;font-size:12px}
+  .enhancement-block{margin:10px 0;padding:12px}
+  .enhancement-heading{margin-bottom:10px}
+  .enhancement-note{margin-top:8px}
+  .position-details{grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+  .position-details span{padding:8px 4px;font-size:11px}
+  .history-head{margin-bottom:10px}
+  .history-list{gap:6px}
+}
+@media(max-width:430px){
+  .hero{align-items:center}
+  .brand-logo{width:64px;height:64px;flex-basis:64px;border-radius:16px}
+  h1{font-size:27px}
+  .subtitle{font-size:12px}
+  .upload-actions,.buttons{grid-template-columns:1fr 1fr!important}
+  .upload-actions button{font-size:12px;padding-left:7px;padding-right:7px}
+  .result-topline{align-items:center}
+  .confidence-pill{padding:6px 8px;font-size:11px}
+  .editor-actions{align-items:center;flex-direction:row}
+}
